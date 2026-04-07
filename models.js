@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
  // mongoose schema and model object
 
- mongoose.connect("mongodb+srv://rajat:Hunter%401999@cluster0.pv92mgy.mongodb.net/todo");
+ mongoose.connect("");
  const UserSchema = new mongoose.Schema({
   username: String,
   password: String,
