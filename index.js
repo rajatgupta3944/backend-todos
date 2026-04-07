@@ -55,7 +55,7 @@ app.post("/signin", async (req, res) => {
     })
   }
   const token = jwt.sign({
-    userId: userExists.id
+    userId: userExists._id.toString()
   }, "rajat123");
   res.json({
     token
@@ -66,43 +66,70 @@ app.post("/signin", async (req, res) => {
 
 app.post("/todo", authMiddleware, (req, res) => { 
   const userId = req.userId;
-  const title = req.body.title;
-  const description = req.body.description;
-  TODOS.push({
-    id: CURRENT_TODO_ID++,
+  const { title, description} = req.body;
+  const newTodo = todoModel.create({
     title,
     description,
-    userId
+    userId,
   })
   res.json({
-    message: "Todo created!"
+    message: "Todo created!",
+    todo: newTodo
   })
 })
 
-app.delete("/todo/:todoId", authMiddleware, (req, res) => {
-  const userId = req.userId;
-  const todoId = parseInt(req.params.todoId);
+app.delete("/todo/:todoId", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const todoId = req.params.todoId;
 
-  const doesUserOwnTodo = TODOS.find(t => t.id === todoId && t.userId === userId);
-  if(doesUserOwnTodo){
-    TODOS = TODOS.filter(t => t.id !== userId);
+    // Check if todo exists and belongs to user
+    const todo = await todoModel.findOne({
+      _id: todoId,
+      userId: userId
+    });
+
+    if (!todo) {
+      return res.status(403).json({
+        message: "Either todo doesn't exist or this is not your todo!"
+      });
+    }
+
+    // Delete the todo
+    await todoModel.deleteOne({
+      _id: todoId
+    });
+
     res.json({
       message: "Todo deleted!"
-    })
-  }
-  else{
-    res.json({
-      message: "Either todo doesn't exist or this is not your todo!"
-    })
-  }
-})
+    });
 
-app.get("/todos", authMiddleware, (req, res) => {
-  const userId = req.userId;
-  const userTodos = TODOS.filter(t => t.userId === userId);
-  res.json({
-    todos: userTodos
-  })
-})
+  } catch (err) {
+    res.status(500).json({
+      message: "Error deleting todo",
+      error: err.message
+    });
+  }
+});
+
+app.get("/todos", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const todos = await todoModel.find({
+      userId: userId
+    });
+
+    res.json({
+      todos
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      message: "Error fetching todos",
+      error: err.message
+    });
+  }
+});
 
 app.listen(3000);
