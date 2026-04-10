@@ -1,6 +1,7 @@
 const express = require("express");
 const {authMiddleware} = require("./middleware.js");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 const {todoModel, userModel} = require("./models");
 
 const app = express();
@@ -13,54 +14,74 @@ app.use(express.json());
 // let TODOS = [];
 
 app.post("/signup", async (req, res) => {
-  const username = req.body.username;
-  const password = req.body.password;
+  try {
+    const { username, password } = req.body;
 
-  // const existingUser = USERS.find(u => u.username === username);
-  const existingUser = await userModel.findOne({
-    username: username,
-    password: password,
-  })
-  if (existingUser){
-    res.status(403).json({
-      message: "User with this username already exists!"
-    })
-    return;
+    if (!username || !password) {
+      return res.status(400).json({
+        message: "Username and password required"
+      });
+    }
+
+    const existingUser = await userModel.findOne({ username });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "User already exists"
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await userModel.create({
+      username,
+      password: hashedPassword
+    });
+
+    res.json({
+      id: newUser._id
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      message: "Internal server error"
+    });
   }
-  if(existingUser){
-    res.status(403).json({
-      message: "User with this username already exists!"
-    })
-    return;
-  }
-  const newUser = userModel.create({
-    username: username,
-    password: password
-  })
-res.json({
-  id: newUser._id
-})
-})
+});
 
 app.post("/signin", async (req, res) => {
-  const username = req.body.username;
-  const password = req.body.password;
-  const userExists = await userModel.findOne({
-    username: username,
-    password: password,
-  })
-  if(!userExists){
-    res.status(403).json({
-      message: "Incorrect credentials!"
-    })
+  try {
+    const { username, password } = req.body;
+
+    const user = await userModel.findOne({ username });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid username or password"
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        message: "Invalid username or password"
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user._id.toString() },
+      "rajat123"
+    );
+
+    res.json({ token });
+
+  } catch (err) {
+    res.status(500).json({
+      message: "Internal server error"
+    });
   }
-  const token = jwt.sign({
-    userId: userExists._id.toString()
-  }, "rajat123");
-  res.json({
-    token
-  })
-})
+});
 
 // Authenticated
 
