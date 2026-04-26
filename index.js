@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const {authMiddleware} = require("./middleware.js");
 const jwt = require("jsonwebtoken");
@@ -71,7 +72,7 @@ app.post("/signin", async (req, res) => {
 
     const token = jwt.sign(
       { userId: user._id.toString() },
-      "rajat123"
+      process.env.JWT_SECRET
     );
 
     res.json({ token });
